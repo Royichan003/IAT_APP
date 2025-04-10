@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            text-align: center;
+        }
+        .header {
+            background: #007bff;
+            color: white;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .logout-btn {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: white;
+            color: black;
+            border: none;
+            padding: 10px 15px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .logout-btn:hover {
+            background: darkred;
+            color: white;
+        }
+        .clear-btn {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: red;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .clear-btn:hover {
+            background: darkred;
+        }
+        .upload-container {
+            margin: 20px auto;
+            padding: 10px;
+            background: white;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .upload-container label {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .upload-form {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 10px;
+        }
+        .upload-form input {
+            flex: 1;
+            padding: 5px;
+            margin-right: 10px;
+        }
+        .upload-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .upload-btn:hover {
+            background: #0056b3;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 30px;
+            padding: 50px;
+            max-width: 800px;
+            margin: auto;
+        }
+        .icon {
+            background: #f8f9fa;
+            width: 150px;
+            height: 150px;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            border: 2px solid #ccc;
+            position: relative;
+        }
+        .icon i {
+            font-size: 40px;
+            color: #007bff;
+        }
+        .icon p {
+            margin: 10px 0;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .icon:hover {
+            background: #ddd;
+        }
+        .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+	 .delete-btn i {
+            font-size: 14px;
+        }
+        .device-input input {
+            padding: 8px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        Network Elements
+        <a href="/logout">
+            <button class="logout-btn">Logout</button>
+        </a>
+    </div>
+
+    <form action="/clear-data" method="post">
+        <button class="clear-btn" title="Clear All Data">Clear Data</button>
+    </form>
+
+    <div class="upload-container">
+        <label for="sqlFile">Upload SQL File:</label>
+        <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
+            <input type="file" id="sqlFile" name="sqlFile" accept=".sql" required>
+            <button type="submit" class="upload-btn">Upload</button>
+        </form>
+    </div>
+
+    <div class="container">
+        {% for device in device_list %}
+            <div class="icon" onclick="location.href='/downstreams?device={{ device }}';">
+                <i class="fa-solid fa-network-wired"></i>
+                <p>{{ device }}</p>
+                <!-- Delete Form (No JavaScript) -->
+                <form action="/delete_device" method="POST">
+                    <input type="hidden" name="device" value="{{ device }}">
+                    <button type="submit" class="delete-btn">
+                        <i class="fa-duotone fa-solid fa-trash"></i>
+                    </button>
+                </form>
+            </div>
+        {% endfor %}
+
+        <!-- Add Device Block -->
+        <div class="icon" onclick="showInput()">
+            <i class="fa-solid fa-plus"></i>
+            <div class="device-input" id="device-input" style="display: none;">
+                <form action="/add-device" method="post">
+                    <input type="text" name="device_name" placeholder="Enter Device Name" required onblur="hideInput()">
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showInput() {
+            document.getElementById("device-input").style.display = "block";
+        }
+        function hideInput() {
+            document.getElementById("device-input").style.display = "none";
+        }
+
+        let inactivityTimer;
+        function resetTimer() {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(logout, 300000); // 5 minutes
+        }
+        function logout() {
+            console.log("Logging out due to inactivity...");
+            window.location.href = "/logout";
+        }
+        document.addEventListener("mousemove", resetTimer);
+        document.addEventListener("keydown", resetTimer);
+        document.addEventListener("touchstart", resetTimer);
+        document.addEventListener("scroll", resetTimer);
+        resetTimer();
+    </script>
+
+</body>
+</html>
+
