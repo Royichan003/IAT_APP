@@ -34,8 +34,8 @@ CONNECTION_TIMEOUT = 60
 def timeout_handler(conn):
 	global connection_status
 	print("Device connection attempt timed out")
-		try:
-			conn.close()
+	try:
+		conn.close()
 		connection_status["status"] = "Not Connected To Device"
 	except Exception:
 		pass
@@ -59,26 +59,26 @@ def login():
 	global server_data,device_list
 	user = request.form.get('username')
 	password = request.form.get('password')
-		if user and password:
+	if user and password:
 		conn, cursor = get_db_connection()
 		select_query="select id from users where username='%s' and password='%s'"%(user,password)
 		cursor.execute(select_query)
 		user_data = cursor.fetchone()
 		if user_data:
 			print("Login credentials varified succesfully\n")
-		session['loggedin'] = True
-		session['user'] = user
-		select_query="select device from device_cmd"
-		cursor.execute(select_query)
-		result = [row[0] for row in cursor.fetchall()]
-		conn.close()
-		if result:
-			print("device list is available\n")
-			device_list = sorted(set(result))
-		return render_template('home.html',device_list=device_list)
+			session['loggedin'] = True
+			session['user'] = user
+			select_query="select device from device_cmd"
+			cursor.execute(select_query)
+			result = [row[0] for row in cursor.fetchall()]
+			conn.close()
+			if result:
+				print("device list is available\n")
+				device_list = sorted(set(result))
+			return render_template('home.html',device_list=device_list)
 		else:
-		error = 'Invalid Credentials!'
-		return render_template('login.html', error=error)
+			error = 'Invalid Credentials!'
+			return render_template('login.html', error=error)
 	return render_template('login.html', error='')
 
 @app.route('/home')
@@ -92,7 +92,7 @@ def dashboard():
 @app.route('/logout')
 def logout():
 	session.clear()
-		connection_status["status"]="Not Connected To Device"
+	connection_status["status"]="Not Connected To Device"
 	return render_template('login.html', error="") # Redirects to login after logout
 
 @app.route('/downstreams', methods=['GET', 'POST'])
@@ -104,7 +104,7 @@ def downstreams():
 	device_name = request.args.get('device')  # Get device from URL
 	print("Received device name:[%s]\n"%device_name)
 	get_server_info(session['user'],device_name)
-		server_data["device"]=device_name
+	server_data["device"]=device_name
 	return render_template('downstreams.html',command_list=command_list,edit_mode=False, result="",connection_status=connection_status["status"],**server_data)
 
 @app.route('/execute_command', methods=['POST'])
@@ -113,8 +113,8 @@ def execute_command():
 	if 'loggedin' not in session:
 		return redirect('/home')
 	command = request.form.get("command_input")
-		http_method=request.form.get("http_method")
-		http_url=request.form.get("http_url")
+	http_method=request.form.get("http_method")
+	http_url=request.form.get("http_url")
 	output=""
 	print("Received command: %s active_connection:%s\n" %(command,active_connections))
 	if "telnet" in active_connections:
@@ -126,41 +126,40 @@ def execute_command():
 		output = tn.read_very_eager().decode("utf-8").strip()
 	elif "ssh" in active_connections:
 		ssh = active_connections["ssh"]
-			#Flush the buffer** before sending the command
-			while True:
-				try:
-					ssh.read_nonblocking(size=4096, timeout=0.5)  # Clear any remaining buffer
-				except pexpect.exceptions.TIMEOUT:
-					break  # No more buffer to clear
-			time.sleep(0.5)
-			#ssh.read()
-			ssh.sendline(command)
-			time.sleep(0.5)
-			ssh.expect([".*[#\$>]"])
-			output=ssh.after.decode().strip()
-			output=output.split("\n")
-			output = "\n".join(output[1:])
-	elif "http" in active_connections:
-			if not http_method and not http_url:
-				print("http_method and http_url required\n")
-				return render_template('downstreams.html',command_list=command_list,edit_mode=False, result=output,connection_status=connection_status["status"],**server_data)
-		print("Received http_method:[%s] http_url:[%s]\n" %(http_method,http_url))
+		#Flush the buffer** before sending the command
+		while True:
 			try:
-				if http_method == "GET":
-					response = requests.get(http_url)
-				elif http_method == "POST":
-					response = requests.post(http_url,command)
-				elif http_method == "PUT":
-					response = requests.put(http_url,command)
-				elif http_method == "DELETE":
-					response = requests.delete(http_url)
-				else:
-					print("Unsupported HTTP method:%s\n"%http_method)
-				output=response.text
-			except Exception as e:
-				print("Request failed:%s\n"%str(e))
+				ssh.read_nonblocking(size=4096, timeout=0.5)  # Clear any remaining buffer
+			except pexpect.exceptions.TIMEOUT:
+				break  # No more buffer to clear
+		time.sleep(0.5)
+		#ssh.read()
+		ssh.sendline(command)
+		time.sleep(0.5)
+		ssh.expect([".*[#\$>]"])
+		output=ssh.after.decode().strip()
+		output=output.split("\n")
+		output = "\n".join(output[1:])
+	elif "http" in active_connections:
+		if not http_method and not http_url:
+			print("http_method and http_url required\n")
+			return render_template('downstreams.html',command_list=command_list,edit_mode=False, result=output,connection_status=connection_status["status"],**server_data)
+		print("Received http_method:[%s] http_url:[%s]\n" %(http_method,http_url))
+		try:
+			if http_method == "GET":
+				response = requests.get(http_url)
+			elif http_method == "POST":
+				response = requests.post(http_url,command)
+			elif http_method == "PUT":
+				response = requests.put(http_url,command)
+			elif http_method == "DELETE":
+				response = requests.delete(http_url)
+			else:
+				print("Unsupported HTTP method:%s\n"%http_method)
+			output=response.text
+		except Exception as e:
+			print("Request failed:%s\n"%str(e))
 
-	
 	print("Output received from downstream:%s\n"%output)
 	return render_template('downstreams.html',command_list=command_list,edit_mode=False, result=output,connection_status=connection_status["status"],**server_data)
 
@@ -195,71 +194,71 @@ def connect():
 	password = server_data.get("password")
 	login_string=server_data.get("login_string")
 
-		re_pass_patt = re.compile(".*password:", re.IGNORECASE)
-		re_login_patt = re.compile(".*login:", re.IGNORECASE)
-		re_success_patt = re.compile(".*PAGE\s+\d+", re.IGNORECASE)  # Pattern for successful login
+	re_pass_patt = re.compile(".*password:", re.IGNORECASE)
+	re_login_patt = re.compile(".*login:", re.IGNORECASE)
+	re_success_patt = re.compile(".*PAGE\s+\d+", re.IGNORECASE)  # Pattern for successful login
 
 	print("Protocol selected:%s\n"%protocol)
 	print("Trying to connect to host:[%s] port:[%s] username:[%s] password:[%s] login_string:[%s]\n"%(host,port,username,password,login_string))
 	if not host or not port:	
 		print("Server details not available to connect\n")
 		return render_template('downstreams.html',command_list=command_list,edit_mode=False, result="",connection_status=connection_status["status"],**server_data)
-		if protocol == "TELNET" or protocol == "SSH":
-			if not username or not password:
-				print("username and password are required to connect\n")
-				return render_template('downstreams.html',command_list=command_list,edit_mode=False, result="",connection_status=connection_status["status"],**server_data)
+	if protocol == "TELNET" or protocol == "SSH":
+		if not username or not password:
+			print("username and password are required to connect\n")
+			return render_template('downstreams.html',command_list=command_list,edit_mode=False, result="",connection_status=connection_status["status"],**server_data)
 	if protocol == "TELNET":
 		try:
 			tn = telnetlib.Telnet(host,int(port))
-		timer = threading.Timer(CONNECTION_TIMEOUT, timeout_handler, [tn])
-		timer.start()
-		if login_string:
-			print("sending LOGIN string\n")
-			tn.write(login_string.encode("ascii") + b"\n")
-				else:
-					print("login command not available, connecting with username and password\n")
-					# Read until the login prompt appears using regex
-					output = read_telnet_response(tn)
-					if re_login_patt.search(output):
-						tn.write(username.encode("ascii") + b"\n")
-						print("login prompt received, username sent\n")
-					# Read until the password prompt appears using regex
-					output = read_telnet_response(tn)
-					if re_pass_patt.search(output):
-						tn.write(password.encode("ascii") + b"\n")
-						print("password prompt received, password sent\n")
-						tn.write("vt100\n")  # Respond with a known terminal type
-						output = read_telnet_response(tn)
+			timer = threading.Timer(CONNECTION_TIMEOUT, timeout_handler, [tn])
+			timer.start()
+			if login_string:
+				print("sending LOGIN string\n")
+				tn.write(login_string.encode("ascii") + b"\n")
+			else:
+				print("login command not available, connecting with username and password\n")
+				# Read until the login prompt appears using regex
 				output = read_telnet_response(tn)
-		if "RESP:0" in output or "SUCCESS" in output or re_success_patt.search(output):
-			active_connections['telnet'] = tn
-			connection_status["status"] = "Connected to Device"
-			print("Telnet connection established to %s:%s"%(host, port))
+				if re_login_patt.search(output):
+					tn.write(username.encode("ascii") + b"\n")
+					print("login prompt received, username sent\n")
+				# Read until the password prompt appears using regex
+				output = read_telnet_response(tn)
+				if re_pass_patt.search(output):
+					tn.write(password.encode("ascii") + b"\n")
+					print("password prompt received, password sent\n")
+					tn.write("vt100\n")  # Respond with a known terminal type
+					output = read_telnet_response(tn)
+				output = read_telnet_response(tn)
+			if "RESP:0" in output or "SUCCESS" in output or re_success_patt.search(output):
+				active_connections['telnet'] = tn
+				connection_status["status"] = "Connected to Device"
+				print("Telnet connection established to %s:%s"%(host, port))
 		except Exception as e:
-		print("Telnet connection failed:%s"%(str(e)))
+			print("Telnet connection failed:%s"%(str(e)))
 	elif protocol == "SSH":
 		try:
-				# Start an interactive SSH session
-				ssh_command = "ssh %s@%s"%(username,host)
-				if login_string:
-					ssh_command = "ssh %s@%s -p %s"%(username,host,port)
-				print("Sending ssh command:[%s]\n"%ssh_command)
-				child = pexpect.spawn(ssh_command, timeout=CONNECTION_TIMEOUT)
-				timer = threading.Timer(CONNECTION_TIMEOUT, timeout_handler, [child])
-				timer.start()
-				# Expect password prompt, timeout, or EOF
-				got = child.expect([re_pass_patt, pexpect.TIMEOUT, pexpect.EOF])
-				print("SSH got:[%s]\n"%got)
-				if got == 0:  # Matched the password prompt using regex
-					child.sendline(password)
-				elif got == 1:  # Timeout occurred
-					print("Connection Timed Out")
-					child.close()
-				elif got == 2:  # Connection closed unexpectedly
-					child.close()
-				active_connections['ssh'] = child
-		connection_status["status"] = "Connected to Device"
-		print("SSH connection established to %s:%s"%(host, port))
+			# Start an interactive SSH session
+			ssh_command = "ssh %s@%s"%(username,host)
+			if login_string:
+				ssh_command = "ssh %s@%s -p %s"%(username,host,port)
+			print("Sending ssh command:[%s]\n"%ssh_command)
+			child = pexpect.spawn(ssh_command, timeout=CONNECTION_TIMEOUT)
+			timer = threading.Timer(CONNECTION_TIMEOUT, timeout_handler, [child])
+			timer.start()
+			# Expect password prompt, timeout, or EOF
+			got = child.expect([re_pass_patt, pexpect.TIMEOUT, pexpect.EOF])
+			print("SSH got:[%s]\n"%got)
+			if got == 0:  # Matched the password prompt using regex
+				child.sendline(password)
+			elif got == 1:  # Timeout occurred
+				print("Connection Timed Out")
+				child.close()
+			elif got == 2:  # Connection closed unexpectedly
+				child.close()
+			active_connections['ssh'] = child
+			connection_status["status"] = "Connected to Device"
+			print("SSH connection established to %s:%s"%(host, port))
 		except Exception as e:
 			print("SSH connection failed:%s\n"%(str(e)))
 
@@ -271,7 +270,7 @@ def connect():
 			connection_status["status"] = "Connected to Device"
 			print("HTTP connection established to %s:%s"%(host, port))
 	
-		return render_template('downstreams.html',command_list=command_list,edit_mode=False, result="",connection_status=connection_status["status"],selected_protocol=protocol,**server_data)
+	return render_template('downstreams.html',command_list=command_list,edit_mode=False, result="",connection_status=connection_status["status"],selected_protocol=protocol,**server_data)
 
 def read_telnet_response(tn):
 	output = []
